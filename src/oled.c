@@ -6,6 +6,7 @@
 
 #include "hardware/gpio.h"
 #include "hardware/i2c.h"
+#include "hardware/spi.h"
 
 #include "commons.h"
 #include "oled.h"
@@ -18,13 +19,14 @@
 // typedef uint64_t qword;
 
 
-#define swap(a, b) (((a) ^= (b)), ((b) ^= (a)), ((a) ^= (b)))
+#define swap(x, y) do {typeof(x) swap = x; x = y; y = swap;} while(0)
 #define min(a,b)   (((a) < (b)) ? (a) : (b))
 #define max(a,b)   (((a) > (b)) ? (a) : (b))
 
 
-byte bitsPerPixel = 4;
-byte buff[4*(WIDTH*HEIGHT)/8] = {0};
+
+#define BUFF_SIZE 4*WIDTH*((HEIGHT+7)/8)
+byte buff[BUFF_SIZE] = {0};
 
 
 #if USE_I2C == 1
@@ -41,103 +43,89 @@ static void initI2C() {
     printf("I2C INIT COMPLETE\r\n");
 }
 
+#pragma GCC optimize ("03")
+#pragma GCC push_options
 static void writeI2C(byte addr, const byte *data, word len, byte mode) {
 #ifdef i2c_default
-    for(int c = 0; c < len; c++) {
-        char snd[2] = {mode, data[c]};
-        i2c_write_blocking(i2c_default, addr, snd, sizeof(snd), false);
+    for(word c = 0; c < len; c++) {
+        const byte snd[2] = {mode, data[c]};
+        i2c_write_blocking(i2c_default, addr, snd, 2, false);
     } return;
 #endif  // i2c_default
 }
 #endif  // USE_I2C
 
-
 #if USE_SPI == 1
 void initSPI() {
     spi_init(SPI_PORT, SPI_SPEED * 1000000);
+    spi_set_format(SPI_PORT, 8, 0, 0, SPI_MSB_FIRST);
     gpio_set_function(DIN, GPIO_FUNC_SPI);
     gpio_set_function(CLK, GPIO_FUNC_SPI);
 
     // Make the SPI pins available to picotool
     bi_decl(bi_2pins_with_func(DIN, CLK, GPIO_FUNC_SPI));
 
-    gpio_init(DIN);
-    gpio_set_dir(DIN, GPIO_OUT);
-    gpio_put(DIN, 0);
-    
-    gpio_init(RST);
-    gpio_set_dir(RST, GPIO_OUT);
-    gpio_put(RST, 1);
-
-    gpio_init(DC);
-    gpio_set_dir(DC, GPIO_OUT);
-    gpio_put(DC, 1);
-
-    gpio_init(CS);
-    gpio_set_dir(CS, GPIO_OUT);
-    gpio_put(CS, 1);
+    RST_INIT; RST_OUT; RST_HI;
+    DC_INIT ; DC_OUT ; DC_HI;
+    CS_INIT ; CS_OUT ; CS_HI;
 }
 
-
-__attribute__((always_inline)) static inline void SSD_DC(byte state) {
-    if(state) gpio_put(DC, 1);
-    else      gpio_put(DC, 0);
-}
-
-__attribute__((always_inline)) static inline void SSD_CS(byte state) {
-    if(state) gpio_put(CS, 1);
-    else      gpio_put(CS, 0);
-}
-
-__attribute__((always_inline)) static inline void SSD_DIN(byte state) {
-    if(state) gpio_put(DIN, 1);
-    else      gpio_put(DIN, 0);
-}
-
-static inline void SSD_RST() {
+void SSD_RST() {
     sleep_ms(5);
-    gpio_put(RST, 1);
-    sleep_ms(25);
-    gpio_put(RST, 0);
-    sleep_ms(25);
 
-    printf("RESET COMPLETE\r\n");
+    RST_HI;
+    sleep_us(15);
+    RST_LO;
 }
 
 
-__attribute__((always_inline)) static inline void writeSPI(byte *data, byte size) {
-    spi_write_blocking(SPI_PORT, data, size);
-}
+void writeSPI(byte data) {spi_write_blocking(SPI_PORT, &data, 1);}
 #endif  // USE_SPI
 
-
-__attribute__((always_inline)) static inline void sendCMD(const byte *cmd, word len) {
+#if USE_I2C == 1
+__attribute__((always_inline)) static inline void sendCMD(byte *cmd, byte len) {
+#endif
+#if USE_SPI == 1
+void sendCMD(byte cmd) {
+#endif
     #if USE_I2C == 1
     writeI2C(ADDRESS, cmd, len, REG_CMD);
     #endif  // USE_I2C
 
     #if USE_SPI == 1
-    SSD_CS(0);
-    SSD_DC(0);
-    writeSPI(cmd, len);
-    SSD_DC(1);
-    SSD_CS(1);
+    CS_LO;
+    DC_LO;
+
+    writeSPI(cmd);
+    
+    CS_HI;
+    DC_HI;
     #endif  // USE_SPI
 }
 
-__attribute__((always_inline)) static inline void sendData(const byte *data, word len) {
+__attribute__((always_inline)) static inline void sendData(byte *data, word len) {
     #if USE_I2C == 1
     writeI2C(ADDRESS, data, len, REG_DATA);
     #endif  // USE_I2C
 
     #if USE_SPI == 1
-    SSD_CS(0);
-    SSD_DC(1);
-    writeSPI(data, len);
-    SSD_DC(0);
-    SSD_CS(1);
+    writeSPI(data);
     #endif  // USE_SPI
 }
+#pragma GCC pop_options
+
+#if USE_SPI == 1
+void sendCMD_and_Data(byte cmd, byte data) {
+    CS_LO;
+    DC_LO;
+
+    writeSPI(cmd);
+    writeSPI(data);
+
+    CS_HI;
+    DC_HI;
+}
+#endif  // USE_SPI
 
 
 static void init() {
@@ -146,39 +134,169 @@ static void init() {
     //                             0xAB, 0x01, 0xB6, 0x04, 0xBE, 0x0F, 0xBC, 0x08,
     //                             0xD5, 0x62, 0xFD, 0x12, 0xA4, 0xAF};
 
-    static const byte init[] = {SET_COMMAND_LOCK     ,  0x12,
-                               (SET_DISP | OLED_OFF) , 
-                                SET_DISP_START_LINE  ,  0x00,
-                                SET_DISP_OFFSET      ,  0x20,
-                                SET_SEG_REMAP        ,  0x51,
-                                SET_MUX_RATIO        ,  0x7F,  // 128x128 display
-                                SET_FN_SELECT_A      ,  0x01,
-                                SET_PHASE_LEN        ,  0x51,
-                                SET_DISP_CLK_DIV     ,  0x01,
-                                SET_PRECHARGE        ,  0x08,
-                                SET_VCOM_DESEL       ,  0x07,
-                                SET_SECOND_PRECHARGE ,  0x01,
-                                SET_FN_SELECT_B      ,  0x62,
-                                SET_GRAYSCALE_LINEAR ,
-                                SET_CONTRAST         ,  0x7F,  // 0-255
-                                SET_DISP_MODE,
-                                SET_ROW_ADDR,  0x00  ,  0x7F,  // 128 width
-                                SET_COL_ADDR,  0x00  ,  0x3F,  // 128 height
-                                SET_SCROLL_DEACTIVATE};
+    #if USE_I2C == 1
+    static byte init[] = {SET_COMMAND_LOCK     ,  0x12,
+                        //  (SET_DISP | OLED_OFF) , 
+                        //   SET_DISP_START_LINE  ,  0x00,
+                          SET_DISP_OFFSET      ,  0x00,
+                          SET_SEG_REMAP        ,  0x30,  // 0x51 / 0xA0
+                        //   SET_MUX_RATIO        ,  0x7F,  // 128x128 display
+                          SET_FN_SELECT_A      ,  0x01,
+                          SET_PHASE_LEN        ,  0x11,  // 0x51 / 0x11
+                          SET_DISP_CLK_DIV     ,  0x00,  // 0x01 / 0x00 
+                          SET_PRECHARGE        ,  0x08,
+                          SET_VCOM_DESEL       ,  0x0F,  // 0x07 / 0x0F
+                          SET_SECOND_PRECHARGE ,  0x04,  // 0x01 / 0x04
+                          SET_FN_SELECT_B      ,  0x62,
+                          SET_GRAYSCALE_LINEAR ,
+                          SET_CONTRAST         ,  0x7F,  // 0-255
+                        //   SET_DISP_MODE,
+                        //   SET_ROW_ADDR,  0x00  ,  0x7F,  // 128 width
+                        //   SET_COL_ADDR,  0x00  ,  0x7F,  // 128 height
+                          SET_SCROLL_DEACTIVATE
+                          };
+
     word len = ARRL(init);
     sendCMD(init, len);
+    #endif
+
+    #if USE_SPI == 1
+    sendCMD_and_Data(SET_COMMAND_LOCK    , 0x12);
+    sendCMD(SET_DISP);
+    sendCMD_and_Data(SET_DISP_START_LINE , 0x00);
+    sendCMD_and_Data(SET_DISP_OFFSET     , 0x00);
+    sendCMD_and_Data(SET_SEG_REMAP       , 0x51);
+    sendCMD_and_Data(SET_MUX_RATIO       , 0x7F);
+    sendCMD_and_Data(SET_FN_SELECT_A     , 0x01);
+    sendCMD_and_Data(SET_PHASE_LEN       , 0x11);
+    sendCMD_and_Data(SET_DISP_CLK_DIV    , 0x01);
+    sendCMD_and_Data(SET_PRECHARGE       , 0x08);
+    sendCMD_and_Data(SET_VCOM_DESEL      , 0x0F);
+    sendCMD_and_Data(SET_SECOND_PRECHARGE, 0x04);
+    sendCMD_and_Data(SET_FN_SELECT_B     , 0x62);
+    sendCMD(SET_GRAYSCALE_LINEAR);
+    sendCMD_and_Data(SET_CONTRAST        , 0x7F);
+    sendCMD(SET_DISP_MODE);
+    #endif
 
     sleep_ms(100);
-    static const byte postInit = (SET_DISP | OLED_ON);
+
+    static byte postInit = (SET_DISP | OLED_ON);
     sendCMD(&postInit, 1);
+
     contrast(0x2F);
 }
 
+#pragma GCC optimize("03")
+#pragma GCC push_options
 void clear(byte color) {
-    static const byte display[] = {SET_COL_ADDR, 0x00, 0x3F, SET_ROW_ADDR, 0x00, 0x7F};
+    memset(buff, color , BUFF_SIZE);
+    word len = ARRL(buff);
+    sendData(buff, len);
+
+    display();
+}
+#pragma GCC pop_options
+
+void powerOn() {
+    #if USE_I2C == 1
+    static byte powerOn[] = {SET_FN_SELECT_A, VDD_ON};
+    word len = ARRL(powerOn);
+    sendCMD(powerOn, len);
+    #endif  // USE_I2C
+
+    #if USE_SPI == 1
+    sendCMD_and_Data(SET_FN_SELECT_A, VDD_ON);
+    printf("POWER ON SUCCESS\r\n");
+    #endif  // USE_SPI
+}
+
+void powerOff() {
+    #if USE_I2C == 1
+    static byte powerOff[] = {SET_FN_SELECT_A, VDD_OFF, (SET_DISP | OLED_OFF)};
+    word len = ARRL(powerOff);
+    sendCMD(powerOff, len);
+    #endif  // USE_I2C
+
+    #if USE_SPI == 1
+    word len = sizeof(powerOff);
+    #endif  // USE_SPI
+}
+
+void displayOn() {
+    static byte postInit = (SET_DISP | OLED_ON);
+    sendCMD(&postInit, 1);
+}
+
+void displayOff() {
+    static byte postInit = (SET_DISP | OLED_OFF);
+    sendCMD(&postInit, 1);
+}
+
+void contrast(byte contrast) {
+    #if USE_I2C == 1
+    byte _contrast[] = {SET_CONTRAST, contrast};
+    word len = ARRL(_contrast);
+    sendCMD(_contrast, len);
+    #endif
+
+    #if USE_SPI == 1
+    word len = sizeof(_contrast);
+    #endif
+}
+
+void invert(byte invert) {
+    #if USE_I2C == 1
+    byte _invert[] = {SET_DISP_MODE | (invert & 1) << 1 | (invert & 1)};  // 0xA4 - normal ; 0xA7 - inverted
+    word len = ARRL(_invert);
+    sendCMD(_invert, len);
+    #endif
+
+    #if USE_SPI == 1
+    word len = sizeof(_invert);
+    #endif
+}
+
+void refresh(byte refresh) {
+    #if USE_I2C == 1
+    byte _refresh[] = {SET_DISP_CLK_DIV | refresh};
+    word len = ARRL(_refresh);
+    sendCMD(_refresh, len);
+    #endif
+
+    #if USE_SPI == 1
+    word len = sizeof(_refresh);
+    #endif
+} 
+
+
+void initOLED() {
+    #if USE_I2C == 1
+        initI2C();
+        sleep_ms(50);
+    #endif
+
+    #if USE_SPI == 1
+        initSPI();
+        SSD_RST();
+    #endif
+    
+    powerOn();
+    sleep_ms(50);
+    
+    init();
+    clear(0x00);
+}
+
+
+#pragma GCC optimize("03")
+#pragma GCC push_options
+void display() {
+    static byte display[] = {SET_COL_ADDR, 0x00, 0x3F, SET_ROW_ADDR, 0x00, 0x7F};
 
     #if USE_I2C == 1
     word len = ARRL(display);
+    word maxBuff = 512;
     #endif
 
     #if USE_SPI == 1
@@ -187,12 +305,8 @@ void clear(byte color) {
 
     sendCMD(display, len);
 
-    memset(buff, color , (4*(WIDTH*HEIGHT)/8));
-    len = ARRL(buff);
-    sendData(buff, len);
-}
 
-static void display() {
+    #if USE_I2C == 1
     byte windowX1 = 0;
     byte windowY1 = 0;
     byte windowX2 = WIDTH-1;
@@ -201,26 +315,13 @@ static void display() {
     byte *localBuff = buff;
     byte rows = HEIGHT;
 
-    byte bytesPerRow = WIDTH/2;     // See fig 10-1 (64 bytes, 128 pixels)
+    byte bytesPerRow = WIDTH/2;
 
     int16_t rowStart = min((int16_t)(bytesPerRow-1), (int16_t)(windowX1/2));
     int16_t rowEnd   = max((int16_t)0, (int16_t)(windowX2/2));
 
     int16_t firstRow = min((int16_t)(rows-1), (int16_t)windowY1);
     int16_t lastRow  = max((int16_t)0, (int16_t)windowY2);
-
-    static const byte display[] = {SET_COL_ADDR, 0x00, 0x3F, SET_ROW_ADDR, 0x00, 0x7F};
-
-    #if USE_I2C == 1
-    word len = ARRL(display);
-    byte maxBuff = 254;
-    #endif
-
-    #if USE_SPI == 1
-    word len = sizeof(display);
-    #endif
-
-    sendCMD(display, len);
 
     for(byte row = firstRow; row <= lastRow; row++) {
         byte bytesRemaining = rowEnd - rowStart+1;
@@ -234,103 +335,13 @@ static void display() {
             bytesRemaining -= toWrite;
         }
     }
+    #endif  // USE_I2C
 
+    #if USE_I2C == 1
     // len = ARRL(buff);
     // sendData(buff, len);
+    #endif
 }
-
-void powerOn() {
-    static const byte powerOn[] = {SET_FN_SELECT_A, VDD_ON, (SET_DISP | OLED_ON)};
-
-    #if USE_I2C == 1
-    word len = ARRL(powerOn);
-    #endif
-
-    #if USE_SPI == 1
-    word len = sizeof(powerOn);
-    #endif
-
-    sendCMD(powerOn, len);
-}
-
-void powerOff() {
-    static const byte powerOff[] = {SET_FN_SELECT_A, VDD_OFF, (SET_DISP | OLED_OFF)};
-
-    #if USE_I2C == 1
-    word len = ARRL(powerOff);
-    #endif
-
-    #if USE_SPI == 1
-    word len = sizeof(powerOff);
-    #endif
-
-    sendCMD(powerOff, len);
-}
-
-void contrast(byte contrast) {
-    byte _contrast[] = {SET_CONTRAST, contrast};
-
-    #if USE_I2C == 1
-    word len = ARRL(_contrast);
-    #endif
-
-    #if USE_SPI == 1
-    word len = sizeof(_contrast);
-    #endif
-
-    sendCMD(_contrast, len);
-}
-
-void invert(byte invert) {
-    byte _invert[] = {SET_DISP_MODE | (invert & 1) << 1 | (invert & 1)};  // 0xA4 - normal ; 0xA7 - inverted
-    
-    #if USE_I2C == 1
-    word len = ARRL(_invert);
-    #endif
-
-    #if USE_SPI == 1
-    word len = sizeof(_invert);
-    #endif
-
-    sendCMD(_invert, len);
-}
-
-void refresh(byte refresh) {
-    byte _refresh[] = {SET_DISP_CLK_DIV | refresh};
-
-    #if USE_I2C == 1
-    word len = ARRL(_refresh);
-    #endif
-
-    #if USE_SPI == 1
-    word len = sizeof(_refresh);
-    #endif
-
-    sendCMD(_refresh, len);
-} 
-
-
-void initOLED() {
-    #if USE_I2C == 1
-        initI2C();
-        sleep_ms(25);
-    #endif
-
-    #if USE_SPI == 1
-        initSPI();
-        sleep_ms(25);
-        SSD_RST();
-    #endif
-    
-    powerOn();
-    init();
-
-    invert(1);
-    invert(0);
-
-    clear(0x00);
-}
-
 
 void setPixel(byte x, byte y, byte color) {
     if((x < 0) || (x >= WIDTH) || (y < 0) || (y >= HEIGHT)) return;
@@ -340,14 +351,64 @@ void setPixel(byte x, byte y, byte color) {
 
     byte *localBuff = &buff[x/2 + (y*WIDTH/2)];
     if(x%2 == 0) {
-        byte t = localBuff[0] & 0x0F;
-        t |= (color & 0xF) << 4;
+        byte t = (localBuff[0] & 0x0F);
+        t |= (color & 0x0F) << 4;
         localBuff[0] = t;
     } else {
         byte t = (localBuff[0] & 0xF0);
-        t |= (color & 0xF);
+        t |= (color & 0x0F);
         localBuff[0] = t;
+    } 
+}
+
+void drawLine(word x0, word y0, word x1, word y1, byte color) {
+    int16_t steep = abs(y1 - y0) > (x1 - x0);
+    if(steep) {
+        swap(x0, y0);
+        swap(x1, y1);
     }
 
-    display();
+    int16_t dx = 0, dy = 0;
+        dx = x1 - x0;
+        dy = abs(y1 - y0);
+
+    int16_t err = dx/2;
+    int16_t ysteep;
+
+    if(y0 < y1) ysteep =  1;
+    else        ysteep = -1;
+
+    for(; x0 <= x1; x0++) {
+        if(steep) setPixel(y0/2, x0, color);
+        else      setPixel(x0, y0/2, color);
+
+        err -= dy;
+        if(err < 0) {
+            y0 += ysteep;
+            err += dx;
+        }
+    }
 }
+
+__attribute__((always_inline)) inline static void drawFastRawHLine(word x, word y, word w, byte color) {memset(buff + ((y * WIDTH + x)), color, w/2);}
+void drawFastHLine(word x, word y, word w, byte color) {
+    if(w < 0) {
+        w *= -1;
+        x -= w-1;
+
+        if(x < 0) {
+            w += x;
+            x = 0;
+        }
+    }
+
+    if((y < 0) || (y >= HEIGHT) || (x >= WIDTH) || ((x+w-1) < 0)) return;
+    if(x < 0) {
+        w += x;
+        x = 0;
+    }
+
+    if(x + w >= WIDTH) w = WIDTH-x;
+    drawFastRawHLine(x, y/4, w, color);
+}
+#pragma GCC pop_options

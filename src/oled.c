@@ -82,12 +82,7 @@ void SSD_RST() {
 void writeSPI(byte data) {spi_write_blocking(SPI_PORT, &data, 1);}
 #endif  // USE_SPI
 
-#if USE_I2C == 1
-__attribute__((always_inline)) static inline void sendCMD(byte *cmd, byte len) {
-#endif
-#if USE_SPI == 1
-void sendCMD(byte cmd) {
-#endif
+__attribute__((always_inline)) static inline void sendCMD(const byte *cmd, byte len) {
     #if USE_I2C == 1
     writeI2C(ADDRESS, cmd, len, REG_CMD);
     #endif  // USE_I2C
@@ -135,7 +130,7 @@ static void init() {
     //                             0xD5, 0x62, 0xFD, 0x12, 0xA4, 0xAF};
 
     #if USE_I2C == 1
-    static byte init[] = {SET_COMMAND_LOCK     ,  0x12,
+    const static byte init[] = {SET_COMMAND_LOCK     ,  0x12,
                         //  (SET_DISP | OLED_OFF) , 
                         //   SET_DISP_START_LINE  ,  0x00,
                           SET_DISP_OFFSET      ,  0x00,
@@ -181,7 +176,7 @@ static void init() {
 
     sleep_ms(100);
 
-    static byte postInit = (SET_DISP | OLED_ON);
+    const static byte postInit = (SET_DISP | OLED_ON);
     sendCMD(&postInit, 1);
 
     contrast(0x2F);
@@ -200,7 +195,7 @@ void clear(byte color) {
 
 void powerOn() {
     #if USE_I2C == 1
-    static byte powerOn[] = {SET_FN_SELECT_A, VDD_ON};
+    const static byte powerOn[] = {SET_FN_SELECT_A, VDD_ON};
     word len = ARRL(powerOn);
     sendCMD(powerOn, len);
     #endif  // USE_I2C
@@ -213,7 +208,7 @@ void powerOn() {
 
 void powerOff() {
     #if USE_I2C == 1
-    static byte powerOff[] = {SET_FN_SELECT_A, VDD_OFF, (SET_DISP | OLED_OFF)};
+    const static byte powerOff[] = {SET_FN_SELECT_A, VDD_OFF, (SET_DISP | OLED_OFF)};
     word len = ARRL(powerOff);
     sendCMD(powerOff, len);
     #endif  // USE_I2C
@@ -224,18 +219,18 @@ void powerOff() {
 }
 
 void displayOn() {
-    static byte postInit = (SET_DISP | OLED_ON);
+    const static byte postInit = (SET_DISP | OLED_ON);
     sendCMD(&postInit, 1);
 }
 
 void displayOff() {
-    static byte postInit = (SET_DISP | OLED_OFF);
+    const static byte postInit = (SET_DISP | OLED_OFF);
     sendCMD(&postInit, 1);
 }
 
 void contrast(byte contrast) {
     #if USE_I2C == 1
-    byte _contrast[] = {SET_CONTRAST, contrast};
+    const byte _contrast[] = {SET_CONTRAST, contrast};
     word len = ARRL(_contrast);
     sendCMD(_contrast, len);
     #endif
@@ -247,7 +242,7 @@ void contrast(byte contrast) {
 
 void invert(byte invert) {
     #if USE_I2C == 1
-    byte _invert[] = {SET_DISP_MODE | (invert & 1) << 1 | (invert & 1)};  // 0xA4 - normal ; 0xA7 - inverted
+    const byte _invert[] = {SET_DISP_MODE | (invert & 1) << 1 | (invert & 1)};  // 0xA4 - normal ; 0xA7 - inverted
     word len = ARRL(_invert);
     sendCMD(_invert, len);
     #endif
@@ -259,7 +254,7 @@ void invert(byte invert) {
 
 void refresh(byte refresh) {
     #if USE_I2C == 1
-    byte _refresh[] = {SET_DISP_CLK_DIV | refresh};
+    const byte _refresh[] = {SET_DISP_CLK_DIV | refresh};
     word len = ARRL(_refresh);
     sendCMD(_refresh, len);
     #endif
@@ -292,7 +287,7 @@ void initOLED() {
 #pragma GCC optimize("03")
 #pragma GCC push_options
 void display() {
-    static byte display[] = {SET_COL_ADDR, 0x00, 0x3F, SET_ROW_ADDR, 0x00, 0x7F};
+    const static byte display[] = {SET_COL_ADDR, 0x00, 0x3F, SET_ROW_ADDR, 0x00, 0x7F};
 
     #if USE_I2C == 1
     word len = ARRL(display);

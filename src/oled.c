@@ -10,6 +10,7 @@
 
 #include "commons.h"
 #include "oled.h"
+#include "font.h"
 
 
 // commons.h
@@ -135,7 +136,7 @@ static void init() {
                                 // (SET_DISP | OLED_OFF) , 
                                 // SET_DISP_START_LINE  ,  0x00,
                                 SET_DISP_OFFSET      ,  0x00,
-                                SET_SEG_REMAP        ,  0x30,  // 0x51 / 0xA0
+                                SET_SEG_REMAP        ,  0x51,  // 0x51 / 0xA0 / 0x30
                                 // SET_MUX_RATIO        ,  0x7F,  // 128x128 display
                                 SET_FN_SELECT_A      ,  0x01,
                                 SET_PHASE_LEN        ,  0x51,  // 0x51 / 0x11
@@ -146,9 +147,9 @@ static void init() {
                                 SET_FN_SELECT_B      ,  0x62,
                                 SET_GRAYSCALE_LINEAR ,
                                 SET_CONTRAST         ,  0x7F,  // 0-255
-                                // SET_DISP_MODE,
-                                // SET_ROW_ADDR,  0x00  ,  0x7F,  // 128 width
-                                // SET_COL_ADDR,  0x00  ,  0x7F,  // 128 height
+                                SET_DISP_MODE,
+                                SET_ROW_ADDR,  0x00  ,  0x7F,  // 128 width
+                                SET_COL_ADDR,  0x00  ,  0x7F,  // 128 height
                                 SET_SCROLL_DEACTIVATE};
 
     word len = ARRL(init);
@@ -169,7 +170,7 @@ static void init() {
     sendCMD_and_Data(SET_VCOM_DESEL      , 0x0F);
     sendCMD_and_Data(SET_SECOND_PRECHARGE, 0x04);
     sendCMD_and_Data(SET_FN_SELECT_B     , 0x62);
-    sendCMD(SET_GRAYSCALE_LINEAR);
+    sendCMD(SET_GRAYsize_LINEAR);
     sendCMD_and_Data(SET_CONTRAST        , 0x7F);
     sendCMD(SET_DISP_MODE);
     #endif
@@ -237,6 +238,14 @@ void contrast(byte contrast) {
 
     #if USE_SPI == 1
     word len = sizeof(_contrast);
+    #endif
+}
+
+void brightness(byte brightness) {
+    #if USE_I2C == 1
+    const byte _brightness[] = {SET_PHASE_LEN, brightness};
+    word len = ARRL(_brightness);
+    sendCMD(_brightness, len);
     #endif
 }
 
@@ -341,20 +350,6 @@ void display() {
 void setPixel(byte x, byte y, byte color) {
     if((x < 0) || (x >= WIDTH) || (y < 0) || (y >= HEIGHT)) return;
 
-    // if(color > 0) buff[(x/2 + (y/8)*WIDTH)] |= (color<<(y%15));
-    // else buff[(x/2 + (y/8)*WIDTH)] &= ~(color<<(y%15));
-
-    // byte *localBuff = &buff[x/2 + (y*WIDTH/2)];
-    // if(x%2 == 0) {
-    //     byte t = (localBuff[0] & 0x0F);
-    //     t |= (color & 0x0F) << 4;
-    //     localBuff[0] = t;
-    // } else {
-    //     byte t = (localBuff[0] & 0xF0);
-    //     t |= (color & 0x0F);
-    //     localBuff[0] = t;
-    // } 
-
     byte dx = WIDTH  - 1 - x;
     byte dy = HEIGHT - 1 - y;
     word addr = (dx + dy * WIDTH-1)/2;
@@ -410,7 +405,7 @@ void drawFastHLine(word x, word y, word w, byte color) {
     }
 
     if(x + w >= WIDTH) w = WIDTH-x;
-    drawFastRawHLine(x, y/4, w, color);
+    drawFastRawHLine(x, y/2, w, color);
 }
 
 static void drawFastRawVLine(word x, word y, word h, byte color) {
@@ -433,7 +428,6 @@ void drawFastVLine(word x, word y, word h, byte color) {
     }
 
     if((x < 0) || (x >= WIDTH) || (y >= HEIGHT) || ((y+h-1) < 0)) return;
-    
     if(y < 0) {
         h += y;
         y = 0;
@@ -442,4 +436,52 @@ void drawFastVLine(word x, word y, word h, byte color) {
     if(y + h > HEIGHT) h = HEIGHT-y;
     drawFastRawVLine(x/2, y, h, color);
 }
+
+void fillRect(byte x, byte y, byte w, byte h, byte color) {
+    for(word i = x; i < x+w; i++) drawFastVLine(i, y, h, color);
+}
+
+
+void putChar(byte x, byte y, char c, byte color, byte bg, byte size) {
+    if((x >= WIDTH) || (y >= HEIGHT) || ((x+6*size-1) < 0) || ((y+8*size-1) < 0)) return;
+
+    // byte line;
+    // for(byte i = 0; i < 6; i++) {
+    //     if(i == 5) line = 0x00;
+    //     else font+(c*5)+i; 
+
+    //     for(byte j = 0; j < 8; j++) {
+    //         if(line & 0x01) {
+    //             if(size == 1) setPixel(x+i, y+j, color);
+    //             else fillRect(x+(i*size), y+(j*size), size, size, color);
+    //         }
+    //         if(bg != color) {
+    //             if(size == 1) setPixel(x+i, y+j, color);
+    //             else fillRect(x+(i*size), y+(j*size), size, size, bg);
+    //         }
+
+    //         line >>= 1; 
+    //     }
+    // }
+
+    register byte dx, dy;
+	for(dx = 0; dx != 5*size; ++dx) {
+		for(dy = 0; dy != 7*size; ++dy) {
+			if((FONT[c-32][dx/size]) & (1 << dy/size)) setPixel(x+dx, y+dy, 0xFF);
+			else setPixel(x+dx, y+dy, 0x00);
+        }
+    }
+
+	x += 5*size + 1;
+	if(x >= 128) {
+		x = 0;
+		y += 7*size + 1;
+	} 
+    
+    if(y >= 128) {
+		x = 0;
+		y = 0;
+	}
+}
+__attribute__((always_inline)) inline void sendc(byte x, byte y, char c) {putChar(x, y, c, 0xFF, 0x00, 1);} 
 #pragma GCC pop_options

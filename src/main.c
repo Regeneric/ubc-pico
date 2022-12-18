@@ -27,6 +27,8 @@ int main() {
     drawFastVLine(0, 0, 127, 0xFF);
     drawLine(0, 0, 0, 127, 0xFF);
     drawLine(0, 127, 127, 127, 0xFF);
+    drawLine(0, 0, 127, 127, 0xFF);
+    drawLine(127, 0, 0, 127, 0xFF);
     display();
 
     sleep_ms(2500);

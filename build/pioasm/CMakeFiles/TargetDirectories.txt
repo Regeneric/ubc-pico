@@ -1,3 +1,0 @@
-/home/hkk/Documents/c/ubc-pico/build/pioasm/CMakeFiles/pioasm.dir
-/home/hkk/Documents/c/ubc-pico/build/pioasm/CMakeFiles/edit_cache.dir
-/home/hkk/Documents/c/ubc-pico/build/pioasm/CMakeFiles/rebuild_cache.dir

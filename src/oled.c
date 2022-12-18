@@ -25,7 +25,8 @@
 
 
 
-#define BUFF_SIZE 4*WIDTH*((HEIGHT+7)/8)
+#define BITS_PER_PIXEL  4
+#define BUFF_SIZE (WIDTH*HEIGHT*BITS_PER_PIXEL)/8
 byte buff[BUFF_SIZE] = {0};
 
 
@@ -131,25 +132,24 @@ static void init() {
 
     #if USE_I2C == 1
     const static byte init[] = {SET_COMMAND_LOCK     ,  0x12,
-                        //  (SET_DISP | OLED_OFF) , 
-                        //   SET_DISP_START_LINE  ,  0x00,
-                          SET_DISP_OFFSET      ,  0x00,
-                          SET_SEG_REMAP        ,  0x30,  // 0x51 / 0xA0
-                        //   SET_MUX_RATIO        ,  0x7F,  // 128x128 display
-                          SET_FN_SELECT_A      ,  0x01,
-                          SET_PHASE_LEN        ,  0x11,  // 0x51 / 0x11
-                          SET_DISP_CLK_DIV     ,  0x00,  // 0x01 / 0x00 
-                          SET_PRECHARGE        ,  0x08,
-                          SET_VCOM_DESEL       ,  0x0F,  // 0x07 / 0x0F
-                          SET_SECOND_PRECHARGE ,  0x04,  // 0x01 / 0x04
-                          SET_FN_SELECT_B      ,  0x62,
-                          SET_GRAYSCALE_LINEAR ,
-                          SET_CONTRAST         ,  0x7F,  // 0-255
-                        //   SET_DISP_MODE,
-                        //   SET_ROW_ADDR,  0x00  ,  0x7F,  // 128 width
-                        //   SET_COL_ADDR,  0x00  ,  0x7F,  // 128 height
-                          SET_SCROLL_DEACTIVATE
-                          };
+                                // (SET_DISP | OLED_OFF) , 
+                                // SET_DISP_START_LINE  ,  0x00,
+                                SET_DISP_OFFSET      ,  0x00,
+                                SET_SEG_REMAP        ,  0x30,  // 0x51 / 0xA0
+                                // SET_MUX_RATIO        ,  0x7F,  // 128x128 display
+                                SET_FN_SELECT_A      ,  0x01,
+                                SET_PHASE_LEN        ,  0x51,  // 0x51 / 0x11
+                                SET_DISP_CLK_DIV     ,  0x00,  // 0x01 / 0x00 
+                                SET_PRECHARGE        ,  0x08,
+                                SET_VCOM_DESEL       ,  0x0F,  // 0x07 / 0x0F
+                                SET_SECOND_PRECHARGE ,  0x04,  // 0x01 / 0x04
+                                SET_FN_SELECT_B      ,  0x62,
+                                SET_GRAYSCALE_LINEAR ,
+                                SET_CONTRAST         ,  0x7F,  // 0-255
+                                // SET_DISP_MODE,
+                                // SET_ROW_ADDR,  0x00  ,  0x7F,  // 128 width
+                                // SET_COL_ADDR,  0x00  ,  0x7F,  // 128 height
+                                SET_SCROLL_DEACTIVATE};
 
     word len = ARRL(init);
     sendCMD(init, len);
@@ -344,16 +344,22 @@ void setPixel(byte x, byte y, byte color) {
     // if(color > 0) buff[(x/2 + (y/8)*WIDTH)] |= (color<<(y%15));
     // else buff[(x/2 + (y/8)*WIDTH)] &= ~(color<<(y%15));
 
-    byte *localBuff = &buff[x/2 + (y*WIDTH/2)];
-    if(x%2 == 0) {
-        byte t = (localBuff[0] & 0x0F);
-        t |= (color & 0x0F) << 4;
-        localBuff[0] = t;
-    } else {
-        byte t = (localBuff[0] & 0xF0);
-        t |= (color & 0x0F);
-        localBuff[0] = t;
-    } 
+    // byte *localBuff = &buff[x/2 + (y*WIDTH/2)];
+    // if(x%2 == 0) {
+    //     byte t = (localBuff[0] & 0x0F);
+    //     t |= (color & 0x0F) << 4;
+    //     localBuff[0] = t;
+    // } else {
+    //     byte t = (localBuff[0] & 0xF0);
+    //     t |= (color & 0x0F);
+    //     localBuff[0] = t;
+    // } 
+
+    byte dx = WIDTH  - 1 - x;
+    byte dy = HEIGHT - 1 - y;
+    word addr = (dx + dy * WIDTH-1)/2;
+
+    buff[addr] = color;
 }
 
 void drawLine(word x0, word y0, word x1, word y1, byte color) {
@@ -374,8 +380,8 @@ void drawLine(word x0, word y0, word x1, word y1, byte color) {
     else        ysteep = -1;
 
     for(; x0 <= x1; x0++) {
-        if(steep) setPixel(y0/2, x0, color);
-        else      setPixel(x0, y0/2, color);
+        if(steep) setPixel(y0, x0, color);
+        else      setPixel(x0, y0, color);
 
         err -= dy;
         if(err < 0) {
@@ -405,5 +411,35 @@ void drawFastHLine(word x, word y, word w, byte color) {
 
     if(x + w >= WIDTH) w = WIDTH-x;
     drawFastRawHLine(x, y/4, w, color);
+}
+
+static void drawFastRawVLine(word x, word y, word h, byte color) {
+    byte *localBuf = buff + ((y * WIDTH + x));
+    for(word i = 0; i < h; i++) {
+        (*localBuf) = color;
+        localBuf += WIDTH/2;
+    }
+}
+
+void drawFastVLine(word x, word y, word h, byte color) {
+    if(h < 0) {
+        h *= -1;
+        y -= h-1;
+
+        if(y < 0) {
+            h += y;
+            y = 0;
+        }
+    }
+
+    if((x < 0) || (x >= WIDTH) || (y >= HEIGHT) || ((y+h-1) < 0)) return;
+    
+    if(y < 0) {
+        h += y;
+        y = 0;
+    }
+    
+    if(y + h > HEIGHT) h = HEIGHT-y;
+    drawFastRawVLine(x/2, y, h, color);
 }
 #pragma GCC pop_options

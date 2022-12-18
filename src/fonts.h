@@ -5,6 +5,7 @@
 
 // Sergey Denisov aka LittleBuster (DenisovS21@gmail.com)
 // Nice font from PCD8544 display
+// !! ONLY UPPERCASE !!
 const byte FONT5x7[][5] = {
 	{ 0x00, 0x00, 0x00, 0x00, 0x00 }, // 20 space
 	{ 0xff, 0xC1, 0xD5, 0xC1, 0xfe }, // 21 ! - fuel distributor symbol 1/2

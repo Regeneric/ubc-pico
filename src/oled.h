@@ -108,6 +108,8 @@
     #define OLED_OFF     0x00
 #endif
 
+
+void screenTest();
 void initOLED();
 
 void powerOn();
@@ -124,11 +126,16 @@ void invert(byte invert);         // 0-1
 void clear(byte color)          __attribute__((optimize("-O3")));
 
 void setPixel(byte x, byte y, byte color)  __attribute__((optimize("-O3")));
+void fillRect(byte x, byte y, byte w, byte h, byte color)          __attribute__((optimize("-O3")));
 
 void drawLine(word x0, word y0, word x1, word y1, byte color)      __attribute__((optimize("-O3")));
+
+void drawHLine(word x, word y, word w, byte color);
 void drawFastHLine(word x, word y, word w, byte color)             __attribute__((optimize("-O3")));
+
+void drawVLine(word x, word y, word h, byte color);
 void drawFastVLine(word x, word y, word h, byte color)             __attribute__((optimize("-O3")));
-void fillRect(byte x, byte y, byte w, byte h, byte color)          __attribute__((optimize("-O3")));
+
 
 void charSize(byte size);
 void charColor(byte color);

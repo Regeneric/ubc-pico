@@ -371,6 +371,7 @@ void setPixel(byte x, byte y, byte color) {
 }
 
 void drawLine(word x0, word y0, word x1, word y1, byte color) {
+    // Bresenham's line algorithm
     int16_t steep = abs(y1 - y0) > (x1 - x0);
     if(steep) {
         swap(x0, y0);
@@ -400,6 +401,7 @@ void drawLine(word x0, word y0, word x1, word y1, byte color) {
 }
 
 __attribute__((always_inline)) inline static void drawFastRawHLine(word x, word y, word w, byte color) {memset(buff + ((y * WIDTH + x)), color, w/2);}
+__attribute__((always_inline)) inline void drawHLine(word x, word y, word w, byte color) {drawLine(x, y, w, y, color);}
 void drawFastHLine(word x, word y, word w, byte color) {
     if(w < 0) {
         w *=  -1;
@@ -429,6 +431,7 @@ static void drawFastRawVLine(word x, word y, word h, byte color) {
     }
 }
 
+__attribute__((always_inline)) inline void drawVLine(word x, word y, word h, byte color) {drawLine(x, y, x, h, color);}
 void drawFastVLine(word x, word y, word h, byte color) {
     if(h < 0) {
         h *= -1;
@@ -459,25 +462,6 @@ __attribute__((always_inline)) inline void charSize(byte size) {text.size = size
 __attribute__((always_inline)) inline void charColor(byte color) {text.color = color;}
 void putChar(byte x, byte y, char c, byte color, byte bg, byte size) {
     if((x >= WIDTH) || (y >= HEIGHT) || ((x+6*size-1) < 0) || ((y+8*size-1) < 0)) return;
-
-    // byte line;
-    // for(byte i = 0; i < 6; i++) {
-    //     if(i == 5) line = 0x00;
-    //     else font+(c*5)+i; 
-
-    //     for(byte j = 0; j < 8; j++) {
-    //         if(line & 0x01) {
-    //             if(size == 1) setPixel(x+i, y+j, color);
-    //             else fillRect(x+(i*size), y+(j*size), size, size, color);
-    //         }
-    //         if(bg != color) {
-    //             if(size == 1) setPixel(x+i, y+j, color);
-    //             else fillRect(x+(i*size), y+(j*size), size, size, bg);
-    //         }
-
-    //         line >>= 1; 
-    //     }
-    // }
 
     size  = (text.size != size)   ? size  : text.size;
     color = (text.color != color) ? color : text.color;
@@ -526,3 +510,125 @@ void sendf(byte x, byte y, float num, byte precision) {
     sends(x, y, buff);
 }
 #pragma GCC pop_options
+
+
+
+
+void screenTest() {
+    initOLED();
+
+    sendc(0, 0, 'A');
+    sendc(120, 0, 'B');
+    sendc(0, 120, 'C');
+    sendc(120, 120, 'D');
+    sendc(WIDTH/2, HEIGHT/2 , 'E');
+    display();
+
+    sleep_ms(2500);
+    clear(0x00);
+    drawFastHLine(0, 127, 127, 0xFF);
+    drawFastVLine(0, 0, 127, 0xFF);
+    drawLine(0, 0, 0, 127, 0xFF);
+    drawLine(0, 127, 127, 127, 0xFF);
+    drawLine(0, 0, 127, 127, 0xFF);
+    drawLine(127, 0, 0, 127, 0xFF);
+    display();
+
+    sleep_ms(2500);
+    clear(0x00);
+
+    drawFastHLine(0, 8, 128, 0xFF);
+    drawFastHLine(0, 16, 128, 0xFF);
+    drawFastHLine(0, 24, 128, 0xFF);
+    drawFastHLine(0, 32, 128, 0xFF);
+    drawFastHLine(0, 40, 128, 0xFF);
+    drawFastHLine(0, 48, 128, 0xFF);
+    drawFastHLine(0, 56, 128, 0xFF);
+    drawFastHLine(0, 64, 128, 0xFF);
+    drawFastHLine(0, 72, 128, 0xFF);
+    drawFastHLine(0, 80, 128, 0xFF);
+    drawFastHLine(0, 88, 128, 0xFF);
+    drawFastHLine(0, 96, 128, 0xFF);
+    drawFastHLine(0, 104, 128, 0xFF);
+    drawFastHLine(0, 112, 128, 0xFF);
+    drawFastHLine(0, 120, 128, 0xFF);
+
+    drawLine(8, 0, 8, 128, 0xFF);
+    drawLine(16, 0, 16, 128, 0xFF);
+    drawLine(24, 0, 24, 128, 0xFF);
+    drawLine(32, 0, 32, 128, 0xFF);
+    drawLine(40, 0, 40, 128, 0xFF);
+    drawLine(48, 0, 48, 128, 0xFF);
+    drawLine(56, 0, 56, 128, 0xFF);
+    drawLine(64, 0, 64, 128, 0xFF);
+    drawLine(72, 0, 72, 128, 0xFF);
+    drawLine(80, 0, 80, 128, 0xFF);
+    drawLine(88, 0, 88, 128, 0xFF);
+    drawLine(96, 0, 96, 128, 0xFF);
+    drawLine(104, 0, 104, 128, 0xFF);
+    drawLine(112, 0, 112, 128, 0xFF);
+    drawLine(120, 0, 120, 128, 0xFF);
+    
+    contrast(0x01);
+    display();
+
+    sleep_ms(2500);
+    displayOff();
+    
+    sleep_ms(2500);
+    displayOn();
+
+    sleep_ms(2500);
+    brightness(0x11);
+
+    sleep_ms(2500);
+    brightness(0x51);
+
+    sleep_ms(2500);
+    invert(1);
+    
+    sleep_ms(2500);
+    invert(0);
+
+    sleep_ms(2500);
+    contrast(0xFF);
+
+    sleep_ms(2500);
+    contrast(0x01);
+
+    sleep_ms(2500);
+    clear(0x00);
+
+    drawFastHLine(0, 110, 127, 0xFF);
+    charSize(1);
+    sendc(0 , 0, 'D');
+    sendc(8, 0, 'U');
+    sendc(16, 0, 'P');
+    sendc(24, 0, 'A');
+
+    charSize(2);
+    sendc(60, 0, '2');
+    sendc(70, 0, '1');
+    sendc(80, 0, '3');
+    sendc(90, 0, '7');
+
+
+    putChar(10, 50, '7', 0xFF, 0x00, 1);
+    putChar(20, 50, '7', 0xFF, 0x00, 2);
+    putChar(35, 50, '7', 0xBF, 0x00, 3);
+    putChar(55, 50, '7', 0x7F, 0x00, 4);
+    putChar(80, 50, '7', 0x3F, 0x00, 5);
+    
+    charColor(0xFF);
+    sends(10, 80, "TEST");
+
+    charSize(1);
+    sends(70, 87, "DUPA");
+
+    sendi(10, 100, -1337);
+    sendf(10, 110, 3.14, 2);
+    display();
+
+    sleep_ms(60000);
+    powerOff();
+}

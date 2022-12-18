@@ -4,6 +4,7 @@ add_executable(${PROJECT}
     main.c
     oled.c
     ftoa.c
+    dht.c
 )
 
 target_link_libraries(${PROJECT} 
@@ -14,6 +15,7 @@ target_link_libraries(${PROJECT}
     hardware_irq
     hardware_spi
     hardware_i2c
+    hardware_flash
 )
 
 pico_enable_stdio_usb(${PROJECT} 1)

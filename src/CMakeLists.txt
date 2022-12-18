@@ -3,6 +3,7 @@ set(PROJECT ubc-pico)
 add_executable(${PROJECT}
     main.c
     oled.c
+    ftoa.c
 )
 
 target_link_libraries(${PROJECT} 

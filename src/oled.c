@@ -10,7 +10,8 @@
 
 #include "commons.h"
 #include "oled.h"
-#include "font.h"
+#include "fonts.h"
+#include "ftoa.h"
 
 
 // commons.h
@@ -28,8 +29,16 @@
 
 #define BITS_PER_PIXEL  4
 #define BUFF_SIZE (WIDTH*HEIGHT*BITS_PER_PIXEL)/8
-byte buff[BUFF_SIZE] = {0};
+static byte buff[BUFF_SIZE] = {0};
 
+
+struct {
+    int x;
+    int y;
+
+    byte size;
+    byte color;
+} text = {.x = 0, .y = 0, .size = 1, .color = 0xFF};
 
 #if USE_I2C == 1
 static void initI2C() {
@@ -140,7 +149,7 @@ static void init() {
                                 // SET_MUX_RATIO        ,  0x7F,  // 128x128 display
                                 SET_FN_SELECT_A      ,  0x01,
                                 SET_PHASE_LEN        ,  0x51,  // 0x51 / 0x11
-                                SET_DISP_CLK_DIV     ,  0x00,  // 0x01 / 0x00 
+                                SET_DISP_CLK_DIV     ,  0x00,  // 100 Hz
                                 SET_PRECHARGE        ,  0x08,
                                 SET_VCOM_DESEL       ,  0x0F,  // 0x07 / 0x0F
                                 SET_SECOND_PRECHARGE ,  0x04,  // 0x01 / 0x04
@@ -350,6 +359,10 @@ void display() {
 void setPixel(byte x, byte y, byte color) {
     if((x < 0) || (x >= WIDTH) || (y < 0) || (y >= HEIGHT)) return;
 
+    // byte *pixel = &buff[addr];
+    // if(color) *pixel |=  (1<<(dy%2));
+    // else      *pixel &= ~(1<<(dy%2));
+
     byte dx = WIDTH  - 1 - x;
     byte dy = HEIGHT - 1 - y;
     word addr = (dx + dy * WIDTH-1)/2;
@@ -374,13 +387,13 @@ void drawLine(word x0, word y0, word x1, word y1, byte color) {
     if(y0 < y1) ysteep =  1;
     else        ysteep = -1;
 
-    for(; x0 <= x1; x0++) {
+    for(;x0 <= x1; x0++) {
         if(steep) setPixel(y0, x0, color);
         else      setPixel(x0, y0, color);
 
         err -= dy;
         if(err < 0) {
-            y0 += ysteep;
+            y0  += ysteep;
             err += dx;
         }
     }
@@ -389,7 +402,7 @@ void drawLine(word x0, word y0, word x1, word y1, byte color) {
 __attribute__((always_inline)) inline static void drawFastRawHLine(word x, word y, word w, byte color) {memset(buff + ((y * WIDTH + x)), color, w/2);}
 void drawFastHLine(word x, word y, word w, byte color) {
     if(w < 0) {
-        w *= -1;
+        w *=  -1;
         x -= w-1;
 
         if(x < 0) {
@@ -401,7 +414,7 @@ void drawFastHLine(word x, word y, word w, byte color) {
     if((y < 0) || (y >= HEIGHT) || (x >= WIDTH) || ((x+w-1) < 0)) return;
     if(x < 0) {
         w += x;
-        x = 0;
+        x  = 0;
     }
 
     if(x + w >= WIDTH) w = WIDTH-x;
@@ -442,6 +455,8 @@ void fillRect(byte x, byte y, byte w, byte h, byte color) {
 }
 
 
+__attribute__((always_inline)) inline void charSize(byte size) {text.size = size;}
+__attribute__((always_inline)) inline void charColor(byte color) {text.color = color;}
 void putChar(byte x, byte y, char c, byte color, byte bg, byte size) {
     if((x >= WIDTH) || (y >= HEIGHT) || ((x+6*size-1) < 0) || ((y+8*size-1) < 0)) return;
 
@@ -464,10 +479,13 @@ void putChar(byte x, byte y, char c, byte color, byte bg, byte size) {
     //     }
     // }
 
+    size  = (text.size != size)   ? size  : text.size;
+    color = (text.color != color) ? color : text.color;
+
     register byte dx, dy;
 	for(dx = 0; dx != 5*size; ++dx) {
 		for(dy = 0; dy != 7*size; ++dy) {
-			if((FONT[c-32][dx/size]) & (1 << dy/size)) setPixel(x+dx, y+dy, 0xFF);
+			if((FONT5x7[c-32][dx/size]) & (1 << dy/size)) setPixel(x+dx, y+dy, color);
 			else setPixel(x+dx, y+dy, 0x00);
         }
     }
@@ -483,5 +501,28 @@ void putChar(byte x, byte y, char c, byte color, byte bg, byte size) {
 		y = 0;
 	}
 }
-__attribute__((always_inline)) inline void sendc(byte x, byte y, char c) {putChar(x, y, c, 0xFF, 0x00, 1);} 
+__attribute__((always_inline)) inline void sendc(byte x, byte y, char c) {putChar(x, y, c, text.color, 0x00, text.size);} 
+
+void sends(byte x, byte y, char *str) {
+    text.x = x;
+    text.y = y;
+
+    while(*str) {
+        sendc(text.x, text.y, *str++);
+        text.x += (text.size == 1) ? text.size * 8 : text.size * 7;
+
+        if(text.x >= WIDTH-1) text.y = text.size * 7;
+    }
+}
+
+void sendi(byte x, byte y, int num) {
+    char buff[16];
+    sends(x, y, itoa(num, buff, 10));
+}
+
+void sendf(byte x, byte y, float num, byte precision) {
+    char buff[32];
+    ftoa(num, buff, precision);
+    sends(x, y, buff);
+}
 #pragma GCC pop_options

@@ -23,6 +23,15 @@ int main() {
     stdio_init_all();
     initOLED();
 
+    sendc(0, 0, 'A');
+    sendc(120, 0, 'B');
+    sendc(0, 120, 'C');
+    sendc(120, 120, 'D');
+    sendc(WIDTH/2, HEIGHT/2 , 'E');
+    display();
+
+    sleep_ms(2500);
+    clear(0x00);
     drawFastHLine(0, 127, 127, 0xFF);
     drawFastVLine(0, 0, 127, 0xFF);
     drawLine(0, 0, 0, 127, 0xFF);
@@ -96,13 +105,14 @@ int main() {
     sleep_ms(2500);
     clear(0x00);
 
-    drawFastHLine(0, 115, 127, 0xFF);
-    sendc(0 , 0, 'K');
-    sendc(10, 0, 'U');
-    sendc(20, 0, 'T');
-    sendc(30, 0, 'A');
-    sendc(40, 0, 'S');
+    drawFastHLine(0, 110, 127, 0xFF);
+    charSize(1);
+    sendc(0 , 0, 'D');
+    sendc(8, 0, 'U');
+    sendc(16, 0, 'P');
+    sendc(24, 0, 'A');
 
+    charSize(2);
     sendc(60, 0, '2');
     sendc(70, 0, '1');
     sendc(80, 0, '3');
@@ -114,6 +124,15 @@ int main() {
     putChar(35, 50, '7', 0xBF, 0x00, 3);
     putChar(55, 50, '7', 0x7F, 0x00, 4);
     putChar(80, 50, '7', 0x3F, 0x00, 5);
+    
+    charColor(0xFF);
+    sends(10, 80, "TEST");
+
+    charSize(1);
+    sends(70, 87, "DUPA");
+
+    sendi(10, 100, -1337);
+    sendf(10, 110, 3.14, 2);
     display();
 
     sleep_ms(60000);

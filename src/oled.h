@@ -7,7 +7,7 @@
 #define SPI_SPEED   4       // MHz
 
 #define USE_I2C     1       // 0 - I2C off ; 1 - SPI on
-#define I2C_SPEED   3100    // kHz  - maximum my display can handle (standard speeds are 100 and 400)
+#define I2C_SPEED   3200    // KHz, around 3.2 Mb/s - maximum speed of I2C standard
 
 #if USE_SPI == 1
     #define SPI_PORT spi0
@@ -119,7 +119,7 @@ void displayOff();
 void display()                  __attribute__((optimize("-O3")));
 void brightness(byte brigthness); // 0-255
 void contrast(byte contrast);     // 0-255
-void refresh(byte refresh);       // 0-255
+void refresh(byte refresh);       // 0-15
 void invert(byte invert);         // 0-1
 void clear(byte color)          __attribute__((optimize("-O3")));
 
@@ -130,7 +130,13 @@ void drawFastHLine(word x, word y, word w, byte color)             __attribute__
 void drawFastVLine(word x, word y, word h, byte color)             __attribute__((optimize("-O3")));
 void fillRect(byte x, byte y, byte w, byte h, byte color)          __attribute__((optimize("-O3")));
 
+void charSize(byte size);
+void charColor(byte color);
 void putChar(byte x, byte y, char c, byte color, byte bg, byte size)  __attribute__((optimize("-O3")));
+
 void sendc(byte x, byte y, char c);
+void sends(byte x, byte y, char *str);
+void sendi(byte x, byte y, int num);
+void sendf(byte x, byte y, float num, byte precision);
 
 #endif  // OLED_H

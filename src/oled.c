@@ -601,7 +601,7 @@ void screenTest() {
 
     drawFastHLine(0, 110, 127, 0xFF);
     charSize(1);
-    sendc(0 , 0, 'D');
+    sendc(0, 0, 'D');
     sendc(8, 0, 'U');
     sendc(16, 0, 'P');
     sendc(24, 0, 'A');

@@ -121,7 +121,7 @@ int main() {
         initIRQ(22, 21);
     #endif 
     
-
+    screenTest();
     while(1) {
 
     } return 0;

@@ -16,6 +16,7 @@ target_link_libraries(${PROJECT}
     hardware_spi
     hardware_i2c
     hardware_flash
+    hardware_timer
 )
 
 pico_enable_stdio_usb(${PROJECT} 1)

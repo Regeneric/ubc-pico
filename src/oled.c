@@ -512,6 +512,38 @@ void sendf(byte x, byte y, float num, byte precision) {
 #pragma GCC pop_options
 
 
+const struct OLED oled = {
+    .powerOn = powerOn,
+    .powerOff = powerOff,
+    
+    .on = displayOn,
+    .off = displayOff,
+
+    .init = initOLED,
+    .display = display,
+    .clear = clear,
+    .invert = invert, 
+    .refresh = refresh,
+    .contrast = contrast,
+    .brightness = brightness,
+
+    .pixel = setPixel,
+    .rect = fillRect,
+    .line = drawLine,
+    .hline = drawHLine,
+    .fhline = drawFastHLine,
+    .vline = drawVLine,
+    .fvline = drawFastVLine,
+
+    .font = charSize,
+    .color = charColor,
+
+    .sendc = sendc,
+    .sends = sends,
+    .sendi = sendi,
+    .sendf = sendf
+};
+
 
 
 void screenTest() {

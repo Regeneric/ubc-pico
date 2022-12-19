@@ -146,4 +146,38 @@ void sends(byte x, byte y, char *str);
 void sendi(byte x, byte y, int num);
 void sendf(byte x, byte y, float num, byte precision);
 
+
+struct OLED {
+    void (*powerOn)(void);
+    void (*powerOff)(void);
+
+    void (*on)(void);
+    void (*off)(void);
+
+    void (*init)(void);
+    void (*display)(void);
+    void (*clear)(byte color);
+    void (*invert)(byte invert);
+    void (*refresh)(byte refresh);
+    void (*contrast)(byte contrast);
+    void (*brightness)(byte brightness);
+
+    void (*pixel)(byte x, byte y, byte color);
+    void (*rect)(byte x, byte y, byte w, byte h, byte color);
+    void (*line)(word x0, word y0, word x1, word y1, byte color);
+    void (*hline)(word x, word y, word w, byte color);
+    void (*fhline)(word x, word y, word w, byte color);
+    void (*vline)(word x, word y, word h, byte color);
+    void (*fvline)(word x, word y, word h, byte color);
+
+    void (*font)(byte size);
+    void (*color)(byte color);
+    void (*cursor)(byte x,  byte y);
+
+    void (*sendc)(byte x, byte y, char c);
+    void (*sends)(byte x, byte y, char *str);
+    void (*sendi)(byte x, byte y, int num);
+    void (*sendf)(byte x, byte y, float nums, byte precision);
+}; extern const struct OLED oled;
+
 #endif  // OLED_H

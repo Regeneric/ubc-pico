@@ -4,7 +4,7 @@
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
 
-#define USE_DHT 1
+#define USE_DHT 0
 
 #if USE_DHT == 1
     #define MAX_TIMING 85

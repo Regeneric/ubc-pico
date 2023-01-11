@@ -1,5 +1,5 @@
 //  ​Universal Board Computer for cars with electronic MPI
-//  Copyright © 2021 IT Crowd, Hubert "hkk" Batkiewicz
+//  Copyright © 2021-2023 IT Crowd, Hubert "hkk" Batkiewicz
 // 
 //  This file is part of UBC.
 //  UBC is free software: you can redistribute it and/or modify

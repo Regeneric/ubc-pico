@@ -1,3 +1,23 @@
+//  ​Universal Board Computer for cars with electronic MPI
+//  Copyright © 2021-2023 IT Crowd, Hubert "hkk" Batkiewicz
+// 
+//  This file is part of UBC.
+//  UBC is free software: you can redistribute it and/or modify
+//  ​it under the terms of the GNU Affero General Public License as
+//  published by the Free Software Foundation, either version 3 of the
+//  ​License, or (at your option) any later version.
+// 
+//  ​This program is distributed in the hope that it will be useful,
+//  ​but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  ​MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+//  See the ​GNU Affero General Public License for more details.
+// 
+//  ​You should have received a copy of the GNU Affero General Public License
+//  ​along with this program.  If not, see <https://www.gnu.org/licenses/>
+
+// <https://itcrowd.net.pl/>
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -142,6 +162,8 @@ int main() {
     // (2022.12.17) - Universal Board Computer (https://github.com/Regeneric/universal-board-computer) port for RPi Pico Board with added OLED and DHT11 support
     // (2022.12.18) - Screen is working, added fonts and drawing functions; Basic UBC functions implemented
     // (2022.12.28) - I added very, very simple multicore support. Just offloaded `show` function to `Core 1` without securing any data in the process. To be refactored
+    // (2022.01.02) - First attempts to add EEPROM memory to this project for data storage
+
 
     stdio_init_all();
     initTimer();

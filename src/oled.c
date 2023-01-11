@@ -41,6 +41,7 @@ struct {
 } text = {.x = 0, .y = 0, .size = 1, .color = 0xFF};
 
 #if USE_I2C == 1
+// i2c_dma_t *i2c0_dma;
 static void initI2C() {
     i2c_init(i2c_default, I2C_SPEED * 1000);
 
@@ -52,11 +53,28 @@ static void initI2C() {
     // Make the I2C pins available to picotool
     bi_decl(bi_2pins_with_func(PICO_DEFAULT_I2C_SDA_PIN, PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C));
     printf("I2C INIT COMPLETE\r\n");
+
+    // const int rc = i2c_dma_init(&i2c0_dma, i2c0, 1000000, 4, 5);
+    // if(rc != PICO_OK) {
+    //     printf("can't configure I2C0\n");
+    // }
 }
 
 #pragma GCC optimize ("03")
 #pragma GCC push_options
 static void writeI2C(byte addr, const byte *data, word len, byte mode) {
+
+    // const uint dmaRX = dma_claim_unused_channel(true);
+    // dma_channel_config cfg = dma_channel_get_default_config(dmaRX);
+    //     channel_config_set_transfer_data_size(&cfg, DMA_SIZE_16);
+    //     channel_config_set_read_increment(&cfg, true);
+    //     channel_config_set_write_increment(&cfg, false);
+    //     channel_config_set_dreq(&cfg, i2c_get_dreq(i2c_default, false));
+    // dma_channel_configure(dmaRX, &cfg,
+    //                       i2c_get_hw(i2c_default),
+    //                       data, len,
+    //                       true);
+
 #ifdef i2c_default
     for(word c = 0; c < len; c++) {
         const byte snd[2] = {mode, data[c]};
@@ -96,6 +114,8 @@ void writeSPI(byte data) {spi_write_blocking(SPI_PORT, &data, 1);}
 __attribute__((always_inline)) static inline void sendCMD(const byte *cmd, byte len) {
     #if USE_I2C == 1
     writeI2C(ADDRESS, cmd, len, REG_CMD);
+    // writeI2C(i2c0_dma, ADDRESS, *cmd, 1, REG_CMD);
+
     #endif  // USE_I2C
 
     #if USE_SPI == 1
@@ -112,6 +132,7 @@ __attribute__((always_inline)) static inline void sendCMD(const byte *cmd, byte 
 __attribute__((always_inline)) static inline void sendData(byte *data, word len) {
     #if USE_I2C == 1
     writeI2C(ADDRESS, data, len, REG_DATA);
+    // writeI2C(i2c0_dma, ADDRESS, *data, 1, REG_DATA);
     #endif  // USE_I2C
 
     #if USE_SPI == 1
@@ -473,6 +494,27 @@ void putChar(byte x, byte y, char c, byte color, byte bg, byte size) {
 			else setPixel(x+dx, y+dy, 0x00);
         }
     }
+
+	// for(dx = 0; dx != 7*size; ++dx) {
+	// 	for(dy = 0; dy != 12*size; ++dy) {
+	// 		if((FONT7x12[c-32][dy/size]) & (1 << dx/size)) setPixel(x+dx, y+dy, color);
+	// 		else setPixel(x+dx, y+dy, 0x00);
+    //     }
+    // }
+
+	// for(dx = 0; dx != 6*size; ++dx) {
+	// 	for(dy = 0; dy != 8*size; ++dy) {
+	// 		if((FONT6x8[c-32][dy/size]) & (1 << dx/size)) setPixel(x+dx, y+dy, color);
+	// 		else setPixel(x+dx, y+dy, 0x00);
+    //     }
+    // }
+
+	// for(dx = 0; dx != 8*size; ++dx) {
+	// 	for(dy = 0; dy != 12*size; ++dy) {
+	// 		if((FONT8x12[c-32][dy/size]) & (1 << dx/size)) setPixel(x+dx, y+dy, color);
+	// 		else setPixel(x+dx, y+dy, 0x00);
+    //     }
+    // }
 
 	x += 5*size + 1;
 	if(x >= 128) {

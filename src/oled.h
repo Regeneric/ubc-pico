@@ -7,7 +7,7 @@
 #define SPI_SPEED   4       // MHz
 
 #define USE_I2C     1       // 0 - I2C off ; 1 - SPI on
-#define I2C_SPEED   3200    // KHz, around 3.2 Mb/s - maximum speed of I2C standard
+#define I2C_SPEED   3000    // KHz, around 3.0 Mb/s - maximum speed of I2C standard is ~3200 KHz
 
 #if USE_SPI == 1
     #define SPI_PORT spi0

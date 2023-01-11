@@ -5,10 +5,12 @@ add_executable(${PROJECT}
     oled.c
     ftoa.c
     dht.c
+    eeprom.c
 )
 
 target_link_libraries(${PROJECT} 
     pico_stdlib 
+    pico_multicore
     pico_binary_info
 
     hardware_gpio
@@ -17,6 +19,7 @@ target_link_libraries(${PROJECT}
     hardware_i2c
     hardware_flash
     hardware_timer
+    hardware_sync
 )
 
 pico_enable_stdio_usb(${PROJECT} 1)
